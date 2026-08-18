@@ -9,10 +9,10 @@ import os
 # MySQL Connection
 # -------------------------
 conn = pymysql.connect(
-    host="localhost",
-    user="root",
-    password="",      # XAMPP default
-    database="test",
+    host="72.60.122.109",
+    user="u295462275_praveenpandi",
+    password="W4dxj1j4y6@9786",
+    database="u295462275_nf",
     charset="utf8mb4"
 )
 

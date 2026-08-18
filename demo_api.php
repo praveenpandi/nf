@@ -6,10 +6,10 @@ header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-$host = 'localhost';
-$user = 'root';
-$password = '';
-$database = 'test';
+$host = '72.60.122.109';
+$user = 'u295462275_praveenpandi';
+$password = 'W4dxj1j4y6@9786';
+$database = 'u295462275_nf';
 
 $conn = @new mysqli($host, $user, $password, $database);
 if ($conn->connect_error) {
