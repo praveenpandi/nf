@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Excel File & Table Mapper - Revenue Cycle Analytics</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <!-- SheetJS Excel Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: rgba(21, 30, 49, 0.9);
+            --bg-input: #151d30;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-highlight: rgba(99, 102, 241, 0.4);
+
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+
+            --accent-indigo: #6366f1;
+            --accent-purple: #a855f7;
+            --accent-cyan: #38bdf8;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+
+            --shadow-card: 0 16px 40px -10px rgba(0, 0, 0, 0.7);
+            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.25);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Golos Text', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 14px;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
+        }
+
+        /* Header Navigation */
+        header {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-brand { display: flex; align-items: center; gap: 1rem; }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 1.25rem;
+        }
+
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1.35rem;
+            background: linear-gradient(135deg, var(--text-main), var(--accent-indigo));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-steps {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .nav-step-item {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-step-item.active { color: var(--accent-indigo); }
+
+        .step-num {
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.78rem;
+        }
+
+        .nav-step-item.active .step-num {
+            background: var(--accent-indigo);
+            color: #ffffff;
+            border-color: var(--accent-indigo);
+        }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+        }
+
+        .import-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-highlight);
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 960px;
+            width: 100%;
+            box-shadow: var(--shadow-card);
+            position: relative;
+        }
+
+        .import-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.65rem;
+            font-weight: 800;
+            margin-bottom: 0.4rem;
+        }
+
+        .import-desc {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            margin-bottom: 1.75rem;
+            line-height: 1.5;
+        }
+
+        /* Drag & Drop Zone */
+        .dropzone {
+            border: 2px dashed var(--border-highlight);
+            background: rgba(99, 102, 241, 0.05);
+            border-radius: 18px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            background: rgba(99, 102, 241, 0.12);
+            border-color: var(--accent-indigo);
+        }
+
+        .dropzone-icon {
+            font-size: 2.5rem;
+            color: var(--accent-indigo);
+            margin-bottom: 0.75rem;
+        }
+
+        .dropzone-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .dropzone-subtext {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+        }
+
+        /* Table Mapper Section */
+        .table-mapper-section {
+            display: none;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .mapper-title-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .mapper-status-badge {
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+        .table-mapper-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .table-mapper-table th {
+            text-align: left;
+            padding: 0.75rem 0.6rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        .table-mapper-table td {
+            padding: 0.75rem 0.6rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: middle;
+        }
+
+        .form-control {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.55rem 0.75rem;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-indigo);
+        }
+
+        .file-item-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            color: var(--accent-cyan);
+            word-break: break-all;
+        }
+
+        /* Progress Bar Block */
+        .processing-block {
+            display: none;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-bar-bg {
+            height: 10px;
+            background: var(--bg-input);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-indigo), var(--accent-cyan));
+            transition: width 0.3s ease;
+        }
+
+        .stage-status-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.75rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            line-height: 1.5;
+        }
+
+        /* Action Buttons */
+        .btn-import {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple));
+            color: #ffffff;
+            border: none;
+            padding: 0.95rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            box-shadow: var(--shadow-glow);
+            transition: all 0.25s ease;
+        }
+
+        .btn-import:hover:not(:disabled) { transform: translateY(-2px); }
+
+        .btn-import:disabled {
+            opacity: 0.4 !important;
+            cursor: not-allowed !important;
+            pointer-events: none !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .btn-proceed {
+            display: none;
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent-emerald), #059669);
+            color: #ffffff;
+            border: none;
+            padding: 0.95rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+            text-decoration: none;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="header-brand">
+            <div class="brand-icon"><i class="fa-solid fa-table-cells"></i></div>
+            <div class="brand-title">Excel File to Database Table Mapper</div>
+        </div>
+
+        <ul class="nav-steps">
+            <li class="nav-step-item"><span class="step-num"><i class="fa-solid fa-check"></i></span> Login</li>
+            <li class="nav-step-item active"><span class="step-num">2</span> Excel File & Table Mapper</li>
+            <li class="nav-step-item"><span class="step-num">3</span> Output Analytics Dashboard</li>
+        </ul>
+    </header>
+
+    <main>
+        <div class="import-card">
+            <h1 class="import-title">Excel File & Database Table Mapper</h1>
+            <p class="import-desc">Upload one or multiple Excel files from any company or date. The system automatically ignores company prefixes (e.g. <code>NFLUA_</code>), date suffixes (e.g. <code>_2026-08-13</code>), and variations like <code>(1)</code>, and maps each Excel file to its corresponding Target Database Table Name.</p>
+
+            <!-- Drag and Drop Zone -->
+            <div class="dropzone" id="dropzone" onclick="$('#file-input').click()">
+                <input type="file" id="file-input" accept=".xlsx,.xls,.csv" multiple style="display:none">
+                <div class="dropzone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                <div class="dropzone-text">Drag & Drop Excel File(s) here or click to browse</div>
+                <div class="dropzone-subtext">Upload files like NFLUA_charges by created date_2026-08-13.xlsx, Payment.PatientPayments, etc.</div>
+            </div>
+
+            <!-- Table Mapper Section -->
+            <div class="table-mapper-section" id="table-mapper-section">
+                <div class="mapper-title-bar">
+                    <div style="font-weight:700;"><i class="fa-solid fa-database"></i> Map Uploaded Excel Files to Database Table Names</div>
+                    <div id="mapper-badge" class="mapper-status-badge badge-success"><i class="fa-solid fa-circle-check"></i> Auto-Mapped</div>
+                </div>
+
+                <table class="table-mapper-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 32%;">Uploaded Excel File</th>
+                            <th style="width: 18%;">Company Prefix</th>
+                            <th style="width: 18%;">Upload Date</th>
+                            <th style="width: 32%;">Target Database Table Name</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-mapper-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Processing Stage Progress Bar -->
+            <div class="processing-block" id="processing-block">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-bar"></div>
+                </div>
+                <div class="stage-status-text" id="stage-status">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Processing data import into database tables...
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <button class="btn-import" id="btn-start-import" style="display:none;">
+                <i class="fa-solid fa-bolt"></i> Import Files into Database Tables & Generate Dashboard
+            </button>
+
+            <a href="#" class="btn-proceed" id="btn-proceed" target="_blank">
+                <span id="btn-proceed-text">Proceed to Dashboard</span> <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+    </main>
+
+    <script>
+        // Database Table Name Definitions & Patterns
+        const DB_TABLE_OPTIONS = [
+            { key: 'charges_by_created_date', dbTable: 'nflua_charges_by_created_date_20260803', title: 'Charges by Created Date (charges_by_created_date)' },
+            { key: 'charges_by_date_of_service', dbTable: 'nflua_charges_by_date_of_service_20260803', title: 'Charges by Date of Service (charges_by_date_of_service)' },
+            { key: 'account_receivable', dbTable: 'nflua_account_receivable_of_08032026', title: 'Account Receivable ARAnalysisGrid (account_receivable_of)' },
+            { key: 'account_rec_not_to_use', dbTable: 'nflua_account_rec_20260803_not_to_use', title: 'Account Receivable (Not To Use) (account_rec_not_to_use)' },
+            { key: 'appointment_analysis', dbTable: 'nflua_appointmentappointmentanalysisgrid_20260803', title: 'Appointment Analysis Grid (appointmentappointmentanalysisgrid)' },
+            { key: 'missing_charges', dbTable: 'nflua_appointmentmissingchargesreport_20260803', title: 'Missing Charges Report (appointmentmissingchargesreport)' },
+            { key: 'patient_payments', dbTable: 'nflua_paymentpatientpayments_20260803', title: 'Patient Payments (paymentpatientpayments)' },
+            { key: 'transaction_details', dbTable: 'nflua_transactiontransactiondetailsanalysisgrid_20260803', title: 'Transaction Details Grid (transactiontransactiondetailsanalysisgrid)' }
+        ];
+
+        let uploadedFilesData = [];
+
+        // Dynamic File Name Parser (Ignores Company Prefix, Date Suffix, (1), -No in use)
+        function parseFilename(filename) {
+            let name = filename.replace(/\.[^/.]+$/, "");
+
+            // Extract Date (YYYY-MM-DD or YYYYMMDD)
+            let dateMatch = name.match(/(\d{4}[-_]?\d{2}[-_]?\d{2})/);
+            let fileDate = dateMatch ? dateMatch[1].replace(/_/g, '-') : new Date().toISOString().split('T')[0];
+            if (dateMatch) {
+                name = name.replace(dateMatch[0], "");
+            }
+
+            // Remove variations: (1), (2), -No in use
+            name = name.replace(/\s*\(\d+\)/g, "").replace(/-No\s*in\s*use/gi, "").trim();
+
+            // Extract Company Prefix (token before first underscore)
+            let company = "NFLUA";
+            let parts = name.split('_');
+            if (parts.length >= 2) {
+                company = parts[0].trim();
+                name = parts.slice(1).join('_').trim();
+            }
+
+            name = name.replace(/^[-_]+|[-_]+$/g, "").trim();
+            let norm = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+            let canonicalKey = "charges_by_created_date";
+            if (norm.includes("createddate") || norm.includes("chargesbycreated")) {
+                canonicalKey = "charges_by_created_date";
+            } else if (norm.includes("dateofservice") || norm.includes("chargesbydos") || norm.includes("chargesbydate")) {
+                canonicalKey = "charges_by_date_of_service";
+            } else if (norm.includes("noinuse") || (norm.includes("accountreceivable") && norm.includes("1"))) {
+                canonicalKey = "account_rec_not_to_use";
+            } else if (norm.includes("accountreceivable") || norm.includes("aranalysisgrid")) {
+                canonicalKey = "account_receivable";
+            } else if (norm.includes("missingcharges")) {
+                canonicalKey = "missing_charges";
+            } else if (norm.includes("appointmentanalysis")) {
+                canonicalKey = "appointment_analysis";
+            } else if (norm.includes("patientpayment")) {
+                canonicalKey = "patient_payments";
+            } else if (norm.includes("transactiondetails")) {
+                canonicalKey = "transaction_details";
+            }
+
+            return { company: company.toUpperCase(), fileDate, canonicalKey };
+        }
+
+        // Drag and Drop Event Listeners
+        const $dropzone = $('#dropzone');
+        $dropzone.on('dragover dragenter', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            $(this).addClass('dragover');
+        });
+        $dropzone.on('dragleave drop', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            $(this).removeClass('dragover');
+        });
+
+        $dropzone.on('drop', function(e) {
+            const files = e.originalEvent.dataTransfer.files;
+            if (files.length > 0) processFiles(files);
+        });
+
+        $('#file-input').on('change', function(e) {
+            if (e.target.files.length > 0) processFiles(e.target.files);
+        });
+
+        function processFiles(files) {
+            uploadedFilesData = [];
+            let readCount = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const parsed = parseFilename(file.name);
+
+                const reader = new FileReader();
+                reader.onload = (function(f, p) {
+                    return function(e) {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheet];
+                        const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                        uploadedFilesData.push({
+                            fileName: f.name,
+                            fileSize: (f.size / (1024 * 1024)).toFixed(2) + ' MB',
+                            company: p.company,
+                            fileDate: p.fileDate,
+                            canonicalKey: p.canonicalKey,
+                            rows: rows
+                        });
+
+                        readCount++;
+                        if (readCount === files.length) {
+                            renderTableMapper();
+                        }
+                    };
+                })(file, parsed);
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function renderTableMapper() {
+            const $tbody = $('#table-mapper-tbody').empty();
+            let autoMappedCount = 0;
+
+            uploadedFilesData.forEach((item, index) => {
+                let optionsHtml = '';
+                DB_TABLE_OPTIONS.forEach(opt => {
+                    const sel = (opt.key === item.canonicalKey) ? 'selected' : '';
+                    optionsHtml += `<option value="${opt.key}" ${sel}>${opt.title}</option>`;
+                });
+
+                if (item.canonicalKey) autoMappedCount++;
+
+                $tbody.append(`
+                    <tr>
+                        <td>
+                            <div class="file-item-name"><i class="fa-solid fa-file-excel" style="color:var(--accent-emerald);"></i> ${item.fileName}</div>
+                            <div style="font-size:0.75rem; color:var(--text-dim);">${item.fileSize} | ${item.rows.length} rows</div>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control item-company-input" data-index="${index}" value="${item.company}">
+                        </td>
+                        <td>
+                            <input type="date" class="form-control item-date-input" data-index="${index}" value="${item.fileDate}">
+                        </td>
+                        <td>
+                            <select class="form-control item-table-select" data-index="${index}">
+                                ${optionsHtml}
+                            </select>
+                        </td>
+                    </tr>
+                `);
+            });
+
+            if (autoMappedCount === uploadedFilesData.length) {
+                $('#mapper-badge').removeClass('badge-warning').addClass('badge-success').html('<i class="fa-solid fa-circle-check"></i> All Excel Files Auto-Mapped to Database Tables');
+            } else {
+                $('#mapper-badge').removeClass('badge-success').addClass('badge-warning').html(`<i class="fa-solid fa-sliders"></i> ${autoMappedCount}/${uploadedFilesData.length} Files Matched`);
+            }
+
+            $('#table-mapper-section').slideDown(200);
+            $('#btn-start-import').prop('disabled', false).removeClass('disabled').css({'opacity': '1', 'pointer-events': 'auto'}).show();
+        }
+
+        // Helper to send records in 500-row chunks sequentially
+        async function uploadFileInChunks(company, fileDate, canonicalKey, rows, fileName) {
+            const chunkSize = 500;
+            const totalChunks = Math.ceil(rows.length / chunkSize) || 1;
+
+            for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+                const chunkRows = rows.slice(chunkIdx * chunkSize, (chunkIdx + 1) * chunkSize);
+
+                $('#stage-status').html(`<i class="fa-solid fa-spinner fa-spin"></i> Uploading <strong>${fileName}</strong> (Chunk ${chunkIdx + 1} of ${totalChunks})...`);
+
+                const response = await new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: 'upload.php',
+                        method: 'POST',
+                        data: {
+                            action: 'process_import',
+                            company: company,
+                            file_date: fileDate,
+                            canonical_key: canonicalKey,
+                            file_name: fileName,
+                            chunk_index: chunkIdx,
+                            total_chunks: totalChunks,
+                            records: JSON.stringify(chunkRows)
+                        },
+                        dataType: 'json',
+                        success: function(res) {
+                            if (res && res.status === 'success') {
+                                resolve(res);
+                            } else {
+                                reject(res ? res.message : 'Unknown response error');
+                            }
+                        },
+                        error: function(xhr, status, err) {
+                            let errStr = `HTTP ${xhr.status} Server Error`;
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errStr = xhr.responseJSON.message;
+                            } else if (xhr.responseText) {
+                                let clean = xhr.responseText.replace(/<[^>]*>?/gm, '').trim();
+                                if (clean) errStr = clean.substring(0, 300);
+                            }
+                            reject(errStr);
+                        }
+                    });
+                });
+            }
+        }
+
+        // Start Import & Execute Static SQL Sequentially
+        $('#btn-start-import').on('click', async function() {
+            if (uploadedFilesData.length === 0) return;
+
+            // DISABLING BUTTON IMMEDIATELY to prevent double clicks
+            const $btn = $(this);
+            $btn.prop('disabled', true).addClass('disabled').css({
+                'opacity': '0.4',
+                'pointer-events': 'none',
+                'cursor': 'not-allowed'
+            });
+
+            $('#processing-block').fadeIn(200);
+            $('#progress-bar').css('width', '10%');
+
+            let mainCompany = "NFLUA";
+            let mainDate = new Date().toISOString().split('T')[0];
+
+            let completed = 0;
+            const totalFiles = uploadedFilesData.length;
+
+            for (let index = 0; index < totalFiles; index++) {
+                const item = uploadedFilesData[index];
+                const updatedCompany = $(`.item-company-input[data-index="${index}"]`).val().trim();
+                const updatedDate = $(`.item-date-input[data-index="${index}"]`).val().trim();
+                const updatedCanonicalKey = $(`.item-table-select[data-index="${index}"]`).val();
+
+                if (index === 0) {
+                    mainCompany = updatedCompany;
+                    mainDate = updatedDate;
+                }
+
+                try {
+                    await uploadFileInChunks(updatedCompany, updatedDate, updatedCanonicalKey, item.rows, item.fileName);
+                    completed++;
+                    const pct = Math.round((completed / totalFiles) * 100);
+                    $('#progress-bar').css('width', pct + '%');
+                } catch (err) {
+                    console.error('Upload Error Detailed:', err);
+                    $('#stage-status').html(`<i class="fa-solid fa-circle-xmark" style="color:var(--accent-rose);"></i> <strong>Import Failed on ${item.fileName}:</strong> <div style="margin-top:0.4rem; font-family:'JetBrains Mono',monospace; background:rgba(244,63,94,0.1); padding:0.5rem; border-radius:6px; border:1px solid rgba(244,63,94,0.3); color:#fda4af;">${err}</div>`);
+                    $btn.prop('disabled', false).removeClass('disabled').css({'opacity': '1', 'pointer-events': 'auto'}).show();
+                    return;
+                }
+            }
+
+            if (completed === totalFiles) {
+                const dashboardUrl = `${mainCompany}_${mainDate}.html`;
+                $('#stage-status').html('<i class="fa-solid fa-circle-check" style="color:var(--accent-emerald);"></i> All Excel files successfully imported into Database Tables!');
+                $btn.hide();
+                $('#btn-proceed').attr('href', dashboardUrl);
+                $('#btn-proceed-text').text(`Open Dashboard (${dashboardUrl})`);
+                $('#btn-proceed').css('display', 'flex').hide().fadeIn(300);
+            }
+        });
+    </script>
+</body>
+</html>
